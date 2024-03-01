@@ -20,7 +20,7 @@ type (
 		Role      string    `json:"role"`
 		ApiKey    string    `json:"apiKey"`
 		CreatedAt time.Time `json:"createdAt"`
-		UpdatedAT time.Time `json:"updatedAt"`
+		UpdatedAt time.Time `json:"updatedAt"`
 	}
 
 	UserStore interface {
