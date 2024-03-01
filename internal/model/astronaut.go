@@ -41,4 +41,12 @@ type (
 		Update(ctx context.Context, a *Astronaut) error
 		Delete(ctx context.Context, id int) error
 	}
+
+	AstronautUsecase interface {
+		Create(ctx context.Context, a *Astronaut) (*Astronaut, error)
+		List(ctx context.Context, limit, offset int) ([]*Astronaut, error)
+		Get(ctx context.Context, id int) (*Astronaut, error)
+		Update(ctx context.Context, a *Astronaut) (*Astronaut, error)
+		Delete(ctx context.Context, id int) error
+	}
 )
