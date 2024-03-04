@@ -3,12 +3,9 @@ package usecase
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/LaQuannT/astronaut-data-api/internal/model"
 )
-
-var timeout = 5 * time.Second
 
 type astronautUsecase struct {
 	astronautStore model.AstronautStore

@@ -12,10 +12,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type apiKeyHeader string
-
-const auth apiKeyHeader = "X-api-key"
-
 type astronautHandler struct {
 	service model.AstronautUsecase
 }
