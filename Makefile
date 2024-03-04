@@ -7,3 +7,5 @@ build:
 test:
 	@go test ./...
 
+docker-compose:
+	@docker-compose up -d

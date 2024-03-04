@@ -84,6 +84,16 @@ func (s *UserStore) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
+func (s *UserStore) SearchApiKey(ctx context.Context, key string) (*model.User, error) {
+	u := new(model.User)
+	query := `SELECT * FROM "user" WHERE api_key=$1;`
+
+	if err := s.db.QueryRow(ctx, query, key).Scan(&u.ID, &u.FirstName, &u.Surename, &u.Email, &u.Password, &u.ApiKey, &u.Role, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		return nil, err
+	}
+	return u, nil
+}
+
 func fromRowToUser(r pgx.Rows) (*model.User, error) {
 	u := new(model.User)
 

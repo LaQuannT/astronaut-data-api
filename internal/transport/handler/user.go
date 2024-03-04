@@ -26,7 +26,7 @@ func RegisterUserHandlers(s model.UserUsecase, r *mux.Router) {
 	}
 
 	r.HandleFunc("/", handler.CreateUser).Methods("POST")
-	r.HandleFunc("/?", handler.ListUsers).Methods("GET")
+	r.HandleFunc("/", handler.ListUsers).Methods("GET")
 	r.HandleFunc("/{userID}", handler.GetUser).Methods("GET")
 	r.HandleFunc("/{userID}", handler.UpdateUser).Methods("PUT")
 	r.HandleFunc("/{userID}", handler.DeleteUser).Methods("DELETE")

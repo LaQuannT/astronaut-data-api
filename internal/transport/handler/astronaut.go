@@ -22,7 +22,7 @@ func RegisterAstronautHandlers(s model.AstronautUsecase, r *mux.Router) {
 	}
 
 	r.HandleFunc("/", handler.CreateAstronaut).Methods("POST")
-	r.HandleFunc("/?", handler.ListAstronauts).Methods("GET")
+	r.HandleFunc("/", handler.ListAstronauts).Methods("GET")
 	r.HandleFunc("/{astronautID}", handler.GetAstronaut).Methods("GET")
 	r.HandleFunc("/{astronautID}", handler.UpdateAstronaut).Methods("PUT")
 	r.HandleFunc("/{astronautID}", handler.DeleteAstronaut).Methods("DELETE")
@@ -99,7 +99,7 @@ func (h *astronautHandler) ListAstronauts(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
+	w.WriteHeader(http.StatusOK)
 	w.Write(jsonBytes)
 }
 
