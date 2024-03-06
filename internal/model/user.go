@@ -33,7 +33,7 @@ type (
 	}
 
 	UserUsecase interface {
-		Create(ctx context.Context, u *User) (*User, error)
+		Create(ctx context.Context, u *User) (*User, []error)
 		List(ctx context.Context, limit, offset int) ([]*User, error)
 		Get(ctx context.Context, id int) (*User, error)
 		Update(ctx context.Context, u *User) (*User, error)

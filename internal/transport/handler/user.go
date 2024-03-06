@@ -14,7 +14,7 @@ import (
 
 type apiKeyHeader string
 
-const auth apiKeyHeader = "X-api-key"
+const ApiKeyHeader apiKeyHeader = "X-api-key"
 
 type userHandler struct {
 	service model.UserUsecase
@@ -42,10 +42,11 @@ func (h *userHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := h.service.Create(ctx, u)
-	if err != nil {
+	u, errs := h.service.Create(ctx, u)
+	if errs != nil {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
-		log.Print(err)
+		log.Print(errs)
+		return
 	}
 
 	jsonBytes, err := json.Marshal(u)
@@ -61,8 +62,8 @@ func (h *userHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *userHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
-	key := r.Header.Get(string(auth))
-	ctx := context.WithValue(r.Context(), auth, key)
+	key := r.Header.Get(string(ApiKeyHeader))
+	ctx := context.WithValue(r.Context(), ApiKeyHeader, key)
 
 	params, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
@@ -105,8 +106,8 @@ func (h *userHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *userHandler) GetUser(w http.ResponseWriter, r *http.Request) {
-	key := r.Header.Get(string(auth))
-	ctx := context.WithValue(r.Context(), auth, key)
+	key := r.Header.Get(string(ApiKeyHeader))
+	ctx := context.WithValue(r.Context(), ApiKeyHeader, key)
 
 	userID := mux.Vars(r)["userID"]
 
@@ -136,8 +137,8 @@ func (h *userHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
-	key := r.Header.Get(string(auth))
-	ctx := context.WithValue(r.Context(), auth, key)
+	key := r.Header.Get(string(ApiKeyHeader))
+	ctx := context.WithValue(r.Context(), ApiKeyHeader, key)
 	u := new(model.User)
 
 	userID := mux.Vars(r)["userID"]
@@ -176,8 +177,8 @@ func (h *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *userHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
-	key := r.Header.Get(string(auth))
-	ctx := context.WithValue(r.Context(), auth, key)
+	key := r.Header.Get(string(ApiKeyHeader))
+	ctx := context.WithValue(r.Context(), ApiKeyHeader, key)
 
 	userID := mux.Vars(r)["userID"]
 
@@ -190,6 +191,7 @@ func (h *userHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	if err := h.service.Delete(ctx, id); err != nil {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		log.Println(err)
+		return
 	}
 
 	jsonBytes, err := json.Marshal(map[string]string{"message": "User deleted"})
