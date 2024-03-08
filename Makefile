@@ -1,8 +1,8 @@
-run:
-	@go build -o bin/astronaut-data-api cmd/api/main.go && bin/astronaut-data-api
+run: build
+	@bin/astronaut-data-api
 
 build:
-	@go build -0 bin/astronaut-data-api cmd/api/main.go
+	@go build -o bin/astronaut-data-api cmd/api/main.go
 
 test:
 	@go test ./...
