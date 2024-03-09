@@ -21,11 +21,14 @@ func RegisterAstronautHandlers(s model.AstronautUsecase, r *mux.Router) {
 		service: s,
 	}
 
-	r.HandleFunc("/", handler.CreateAstronaut).Methods("POST")
-	r.HandleFunc("/", handler.ListAstronauts).Methods("GET")
-	r.HandleFunc("/{astronautID}", handler.GetAstronaut).Methods("GET")
-	r.HandleFunc("/{astronautID}", handler.UpdateAstronaut).Methods("PUT")
-	r.HandleFunc("/{astronautID}", handler.DeleteAstronaut).Methods("DELETE")
+	sr := r.PathPrefix("/astronauts").Subrouter()
+	// TODO - add api key middleware
+
+	sr.HandleFunc("", handler.CreateAstronaut).Methods("POST")
+	sr.HandleFunc("", handler.ListAstronauts).Methods("GET")
+	sr.HandleFunc("/{astronautID}", handler.GetAstronaut).Methods("GET")
+	sr.HandleFunc("/{astronautID}", handler.UpdateAstronaut).Methods("PUT")
+	sr.HandleFunc("/{astronautID}", handler.DeleteAstronaut).Methods("DELETE")
 }
 
 func (h *astronautHandler) CreateAstronaut(w http.ResponseWriter, r *http.Request) {
@@ -35,28 +38,19 @@ func (h *astronautHandler) CreateAstronaut(w http.ResponseWriter, r *http.Reques
 	ctx := context.WithValue(r.Context(), ApiKeyHeader, key)
 
 	if err := json.NewDecoder(r.Body).Decode(a); err != nil {
-		http.Error(w, "500 Internal Server error", http.StatusInternalServerError)
+		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Invalid request body"})
 		log.Printf("error decoding request body to astronaut: %v", err)
 		return
 	}
 
 	a, err := h.service.Create(ctx, a)
 	if err != nil {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
-		log.Println(err)
+		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Bad Request"})
+		log.Printf("error creating new astronaut: %v", err)
 		return
 	}
 
-	jsonBytes, err := json.Marshal(a)
-	if err != nil {
-		http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
-		log.Printf("error marshalling astronaut to json: %v", err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	w.Write(jsonBytes)
+	writeJSON(w, http.StatusCreated, model.JSONResponse{Astronaut: a})
 }
 
 func (h *astronautHandler) ListAstronauts(w http.ResponseWriter, r *http.Request) {
@@ -65,7 +59,7 @@ func (h *astronautHandler) ListAstronauts(w http.ResponseWriter, r *http.Request
 
 	params, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
-		http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
+		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "invalid request query"})
 		log.Printf("error parsing url request query: %v", err)
 		return
 	}
@@ -87,20 +81,12 @@ func (h *astronautHandler) ListAstronauts(w http.ResponseWriter, r *http.Request
 
 	astronauts, err := h.service.List(ctx, limit, offset)
 	if err != nil {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
-		log.Println(err)
-	}
-
-	jsonBytes, err := json.Marshal(astronauts)
-	if err != nil {
-		http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
-		log.Printf("error marshalling list of astronauts to json: %v", err)
+		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Bad Request"})
+		log.Printf("error listing astronauts: %v", err)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write(jsonBytes)
+	writeJSON(w, http.StatusOK, model.JSONResponse{Astronauts: astronauts})
 }
 
 func (h *astronautHandler) GetAstronaut(w http.ResponseWriter, r *http.Request) {
@@ -110,27 +96,18 @@ func (h *astronautHandler) GetAstronaut(w http.ResponseWriter, r *http.Request) 
 	astronautID := mux.Vars(r)["astronautID"]
 	id, err := strconv.Atoi(astronautID)
 	if err != nil {
-		http.Error(w, "Bad Request - Invalid Astronaut ID", http.StatusBadRequest)
+		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Invalid Astronaut ID"})
 		return
 	}
 
 	a, err := h.service.Get(ctx, id)
 	if err != nil {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
-		log.Println(err)
+		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Bad Request"})
+		log.Printf("error fetching a astronaut: %v", err)
 		return
 	}
 
-	jsonBytes, err := json.Marshal(a)
-	if err != nil {
-		http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
-		log.Printf("error marshalling astronaut to json: %v", err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	w.Write(jsonBytes)
+	writeJSON(w, http.StatusOK, model.JSONResponse{Astronaut: a})
 }
 
 func (h *astronautHandler) UpdateAstronaut(w http.ResponseWriter, r *http.Request) {
@@ -141,12 +118,12 @@ func (h *astronautHandler) UpdateAstronaut(w http.ResponseWriter, r *http.Reques
 	astronautID := mux.Vars(r)["astronautID"]
 	id, err := strconv.Atoi(astronautID)
 	if err != nil {
-		http.Error(w, "Bad Request - Invalid Astronaut ID", http.StatusBadRequest)
+		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Invalid Astronaut ID"})
 		return
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(a); err != nil {
-		http.Error(w, "500 Internal Server error", http.StatusInternalServerError)
+		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Invalid request body"})
 		log.Printf("error decoding request body to astronaut: %v", err)
 		return
 	}
@@ -155,21 +132,12 @@ func (h *astronautHandler) UpdateAstronaut(w http.ResponseWriter, r *http.Reques
 
 	a, err = h.service.Update(ctx, a)
 	if err != nil {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
-		log.Println(err)
+		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Bad Request"})
+		log.Printf("error updating a user: %v", err)
 		return
 	}
 
-	jsonBytes, err := json.Marshal(a)
-	if err != nil {
-		http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
-		log.Printf("error marshalling astronaut to json: %v", err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	w.Write(jsonBytes)
+	writeJSON(w, http.StatusOK, model.JSONResponse{Astronaut: a})
 }
 
 func (h *astronautHandler) DeleteAstronaut(w http.ResponseWriter, r *http.Request) {
@@ -179,24 +147,15 @@ func (h *astronautHandler) DeleteAstronaut(w http.ResponseWriter, r *http.Reques
 	astronautID := mux.Vars(r)["astronautID"]
 	id, err := strconv.Atoi(astronautID)
 	if err != nil {
-		http.Error(w, "Bad Request - Invalid Astronaut ID", http.StatusBadRequest)
+		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Invalid Astronaut ID"})
 		return
 	}
 
 	if err := h.service.Delete(ctx, id); err != nil {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
-		log.Println(err)
+		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Bad Request"})
+		log.Printf("error deleting an astronaut: %v", err)
 		return
 	}
 
-	jsonBytes, err := json.Marshal(map[string]string{"message": "astronaut deleted"})
-	if err != nil {
-		http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
-		log.Printf("error marshalling astronaut deleted message: %v", err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	w.Write(jsonBytes)
+	writeJSON(w, http.StatusOK, model.JSONResponse{Message: "Astronaut Deleted"})
 }

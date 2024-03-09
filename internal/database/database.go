@@ -48,6 +48,8 @@ func (p *PostgresDB) Init() (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("failed to build 'ASTRONAUT' table: %v", err)
 	}
 
+	// TODO - create a function that populates DB with csv data if DB is empty
+
 	return p.db, nil
 }
 
