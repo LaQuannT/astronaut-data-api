@@ -169,6 +169,8 @@ func (p *PostgresDB) populateAstronautTable() error {
 	for _, a := range astronauts {
 		formatStrsToLower(a)
 
+		fmt.Println(a.SpaceFlights)
+
 		a.AlmaMater = strings.Split(a.AlmaMaterStr, ";")
 		a.UndergraduateMajor = strings.Split(a.UndergraduateMajorStr, ";")
 		a.GraduateMajor = strings.Split(a.GraduateMajorStr, ";")

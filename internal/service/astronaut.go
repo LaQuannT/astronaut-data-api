@@ -25,12 +25,11 @@ func (uc *astronautUsecase) Create(ctx context.Context, a *model.Astronaut) (*mo
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	id, err := uc.astronautStore.Create(ctx, a)
+	a, err := uc.astronautStore.Create(ctx, a)
 	if err != nil {
 		return nil, fmt.Errorf("error creating new astronaut: %w", err)
 	}
 
-	a.ID = id
 	return a, nil
 }
 

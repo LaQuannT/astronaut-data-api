@@ -19,10 +19,9 @@ func NewAstronautStore(db *pgxpool.Pool) *astronautStore {
 	}
 }
 
-func (s *astronautStore) Create(ctx context.Context, a *model.Astronaut) (int, error) {
-	var id int
+func (s *astronautStore) Create(ctx context.Context, a *model.Astronaut) (*model.Astronaut, error) {
 	query := `INSERT INTO astronaut
-  (name, year, group, status, birth_place, birth_year, gender, alma_mater, undergraduate_major,
+  (name, year, "group", status, birth_date, birth_place, gender, alma_mater, undergraduate_major,
   graduate_major, military_rank, military_branch, space_flights, space_flight_hrs, space_walks,
   space_walk_hrs, missions, death_date, death_mission)
   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
@@ -30,12 +29,12 @@ func (s *astronautStore) Create(ctx context.Context, a *model.Astronaut) (int, e
 
 	err := s.db.QueryRow(ctx, query, a.Name, a.Year, a.Group, a.Status, a.BirthDate, a.BirthPlace,
 		a.Gender, pq.Array(a.AlmaMater), pq.Array(a.UndergraduateMajor), pq.Array(a.GraduateMajor), a.MilitaryRank, a.MilitaryBranch, a.SpaceFlights,
-		a.SpaceFlightHours, a.SpaceWalks, a.SpaceWalkHours, pq.Array(a.Missions), a.DeathDate, a.DeathMission).Scan(&id)
+		a.SpaceFlightHours, a.SpaceWalks, a.SpaceWalkHours, pq.Array(a.Missions), a.DeathDate, a.DeathMission).Scan(&a.ID)
 	if err != nil {
-		return id, err
+		return nil, err
 	}
 
-	return id, nil
+	return a, nil
 }
 
 func (s *astronautStore) List(ctx context.Context, limit, offset int) ([]*model.Astronaut, error) {
@@ -73,7 +72,7 @@ func (s *astronautStore) Get(ctx context.Context, id int) (*model.Astronaut, err
 }
 
 func (s *astronautStore) Update(ctx context.Context, a *model.Astronaut) error {
-	query := `UPDATE astronaut SET name=$1, year=$2, group=$3, status=$4, birth_place=$5, birth_year=$6, gender=$7, alma_mater=$8, undergraduate_major=$9,
+	query := `UPDATE astronaut SET name=$1, year=$2, group=$3, status=$4, birth_date=$5, birth_place=$6, gender=$7, alma_mater=$8, undergraduate_major=$9,
   graduate_major=$10, military_rank=$11, military_branch=$12, space_flights=$13, space_flight_hrs=$14, space_walks=$15, space_walk_hrs=$16, missions=$17,
   death_date=$18, death_mission=$19 WHERE id=$20;`
 	_, err := s.db.Exec(ctx, query, a.Name, a.Year, a.Group, a.Status, a.BirthDate, a.BirthPlace,
