@@ -1,8 +1,8 @@
 package model
 
 type JSONResponse struct {
-	Astronaut  *Astronaut   `json:"astronaut"`
-	Astronauts []*Astronaut `json:"astronauts"`
+	Astronaut  *Astronaut   `json:"astronaut,omitempty"`
+	Astronauts []*Astronaut `json:"astronauts,omitempty"`
 	User       *User        `json:"user,omitempty"`
 	Users      []*User      `json:"users,omitempty"`
 	Message    string       `json:"message,omitempty"`
