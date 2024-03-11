@@ -1,4 +1,4 @@
-package handler
+package util
 
 import (
 	"encoding/json"
@@ -7,7 +7,7 @@ import (
 
 const jsonContentType = "application/json"
 
-func writeJSON(w http.ResponseWriter, status int, v any) {
+func WriteJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", jsonContentType)
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(v)

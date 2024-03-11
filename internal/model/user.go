@@ -38,5 +38,6 @@ type (
 		Get(ctx context.Context, id int) (*User, error)
 		Update(ctx context.Context, u *User) (*User, error)
 		Delete(ctx context.Context, id int) error
+		SearchAPIKey(ctx context.Context, key string) (*User, error)
 	}
 )

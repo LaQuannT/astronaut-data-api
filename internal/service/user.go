@@ -195,3 +195,12 @@ func (uc *userUsercase) Delete(ctx context.Context, id int) error {
 
 	return nil
 }
+
+func (uc *userUsercase) SearchAPIKey(ctx context.Context, key string) (*model.User, error) {
+	u, err := uc.store.SearchApiKey(ctx, key)
+	if err != nil {
+		return nil, fmt.Errorf("error searching for user by APIKey: %w", err)
+	}
+
+	return u, nil
+}
