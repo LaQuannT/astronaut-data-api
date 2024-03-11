@@ -2,8 +2,12 @@ package config
 
 import (
 	"fmt"
+	"io"
+	"log/slog"
 	"os"
 )
+
+const LevelTrace = slog.Level(12)
 
 type config struct {
 	Port      string
@@ -14,6 +18,7 @@ type config struct {
 	DBName    string
 	SSLMode   string
 	JWTSecret string
+	Stage     string
 }
 
 func (c *config) BuildDBConnStr() string {
@@ -30,6 +35,7 @@ func Init() config {
 		DBPort:   getEnv("PG_PORT", "5432"),
 		DBName:   getEnv("PG_DATABASE", "testDB"),
 		SSLMode:  getEnv("PG_SSLMODE", "disable"),
+		Stage:    getEnv("APP_ENV", "development"),
 	}
 }
 
@@ -40,4 +46,33 @@ func getEnv(key, fallback string) string {
 	}
 
 	return value
+}
+
+func InitLogger(w io.Writer, stage string) *slog.Logger {
+	levelNames := map[slog.Leveler]string{
+		LevelTrace: "FATAL",
+	}
+
+	opts := &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.LevelKey {
+				level := a.Value.Any().(slog.Level)
+				levelLabel, exists := levelNames[level]
+				if !exists {
+					levelLabel = level.String()
+				}
+				a.Value = slog.StringValue(levelLabel)
+			}
+			return a
+		},
+	}
+
+	var handler slog.Handler = slog.NewTextHandler(w, opts)
+	if stage == "production" {
+		handler = slog.NewJSONHandler(w, opts)
+	}
+
+	l := slog.New(handler)
+	return l
 }

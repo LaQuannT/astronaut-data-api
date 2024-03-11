@@ -3,7 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -14,11 +14,13 @@ import (
 
 type astronautHandler struct {
 	service model.AstronautUsecase
+	log     *slog.Logger
 }
 
-func RegisterAstronautHandlers(s model.AstronautUsecase, r *mux.Router) {
+func RegisterAstronautHandlers(s model.AstronautUsecase, r *mux.Router, l *slog.Logger) {
 	handler := &astronautHandler{
 		service: s,
+		log:     l,
 	}
 
 	sr := r.PathPrefix("/astronauts").Subrouter()
@@ -39,14 +41,14 @@ func (h *astronautHandler) CreateAstronaut(w http.ResponseWriter, r *http.Reques
 
 	if err := json.NewDecoder(r.Body).Decode(a); err != nil {
 		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Invalid request body"})
-		log.Printf("error decoding request body to astronaut: %v", err)
+		h.log.Warn("error decoding request body to astronaut", slog.Any("error", err))
 		return
 	}
 
 	a, err := h.service.Create(ctx, a)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Bad Request"})
-		log.Printf("error creating new astronaut: %v", err)
+		h.log.Warn("error creating new astronaut", slog.Any("error", err))
 		return
 	}
 
@@ -60,7 +62,7 @@ func (h *astronautHandler) ListAstronauts(w http.ResponseWriter, r *http.Request
 	params, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "invalid request query"})
-		log.Printf("error parsing url request query: %v", err)
+		h.log.Warn("error parsing url request query", slog.Any("error", err))
 		return
 	}
 
@@ -82,7 +84,7 @@ func (h *astronautHandler) ListAstronauts(w http.ResponseWriter, r *http.Request
 	astronauts, err := h.service.List(ctx, limit, offset)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Bad Request"})
-		log.Printf("error listing astronauts: %v", err)
+		h.log.Warn("error listing astronauts", slog.Any("error", err))
 		return
 	}
 
@@ -103,7 +105,7 @@ func (h *astronautHandler) GetAstronaut(w http.ResponseWriter, r *http.Request) 
 	a, err := h.service.Get(ctx, id)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Bad Request"})
-		log.Printf("error fetching a astronaut: %v", err)
+		h.log.Warn("error fetching a astronaut", slog.Any("error", err))
 		return
 	}
 
@@ -124,7 +126,7 @@ func (h *astronautHandler) UpdateAstronaut(w http.ResponseWriter, r *http.Reques
 
 	if err := json.NewDecoder(r.Body).Decode(a); err != nil {
 		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Invalid request body"})
-		log.Printf("error decoding request body to astronaut: %v", err)
+		h.log.Warn("error decoding request body to astronaut", slog.Any("error", err))
 		return
 	}
 
@@ -133,7 +135,7 @@ func (h *astronautHandler) UpdateAstronaut(w http.ResponseWriter, r *http.Reques
 	a, err = h.service.Update(ctx, a)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Bad Request"})
-		log.Printf("error updating a user: %v", err)
+		h.log.Warn("error updating a astronaut", slog.Any("error", err))
 		return
 	}
 
@@ -153,7 +155,7 @@ func (h *astronautHandler) DeleteAstronaut(w http.ResponseWriter, r *http.Reques
 
 	if err := h.service.Delete(ctx, id); err != nil {
 		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Bad Request"})
-		log.Printf("error deleting an astronaut: %v", err)
+		h.log.Warn("error deleting an astronaut", slog.Any("error", err))
 		return
 	}
 

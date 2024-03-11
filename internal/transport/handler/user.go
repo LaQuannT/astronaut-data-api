@@ -3,7 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -18,11 +18,13 @@ const ApiKeyHeader apiKeyHeader = "X-api-key"
 
 type userHandler struct {
 	service model.UserUsecase
+	log     *slog.Logger
 }
 
-func RegisterUserHandlers(s model.UserUsecase, r *mux.Router) {
+func RegisterUserHandlers(s model.UserUsecase, r *mux.Router, l *slog.Logger) {
 	handler := userHandler{
 		service: s,
+		log:     l,
 	}
 
 	sr := r.PathPrefix("/users").Subrouter()
@@ -41,14 +43,14 @@ func (h *userHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(u); err != nil {
 		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Invalid request body"})
-		log.Printf("error decoding json request body: %v", err)
+		h.log.Warn("error decoding json request body", slog.Any("error", err))
 		return
 	}
 
 	u, errs := h.service.Create(ctx, u)
 	if errs != nil {
 		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Bad Request"})
-		log.Printf("error creating new user: %v", errs)
+		h.log.Warn("error creating new user", slog.Any("error", errs))
 		return
 	}
 
@@ -62,7 +64,7 @@ func (h *userHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	params, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Invalid request query"})
-		log.Printf("error parsing url request query: %v", err)
+		h.log.Warn("error parsing url request query", slog.Any("error", err))
 		return
 	}
 
@@ -84,7 +86,7 @@ func (h *userHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := h.service.List(ctx, limit, offset)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Bad Request"})
-		log.Printf("error listing users: %v", err)
+		h.log.Warn("error listing users", slog.Any("error", err))
 		return
 	}
 
@@ -106,7 +108,7 @@ func (h *userHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	u, err := h.service.Get(ctx, id)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Bad Request"})
-		log.Printf("error fetching a user: %v", err)
+		h.log.Warn("error fetching a user", slog.Any("error", err))
 		return
 	}
 
@@ -128,7 +130,7 @@ func (h *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(u); err != nil {
 		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Invalid request body"})
-		log.Printf("error decoding json request body: %v", err)
+		h.log.Warn("error decoding json request body", slog.Any("error", err))
 		return
 	}
 
@@ -137,7 +139,7 @@ func (h *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	u, err = h.service.Update(ctx, u)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Bad Request"})
-		log.Printf("error updating a user: %v", err)
+		h.log.Warn("error updating a user", slog.Any("error", err))
 		return
 	}
 
@@ -158,7 +160,7 @@ func (h *userHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.service.Delete(ctx, id); err != nil {
 		writeJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Bad Request"})
-		log.Printf("error deleting a user: %v", err)
+		h.log.Warn("error deleting a user", slog.Any("error", err))
 		return
 	}
 

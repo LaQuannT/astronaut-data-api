@@ -1,8 +1,10 @@
 package app
 
 import (
+	"context"
 	"fmt"
-	"log"
+	"log/slog"
+	"os"
 
 	"github.com/LaQuannT/astronaut-data-api/internal/config"
 	"github.com/LaQuannT/astronaut-data-api/internal/database"
@@ -13,10 +15,13 @@ import (
 func Run() {
 	env := config.Init()
 
-	db := database.NewPostgresDB(env.BuildDBConnStr())
+	logger := config.InitLogger(os.Stdout, env.Stage)
+
+	db := database.NewPostgresDB(env.BuildDBConnStr(), logger)
 	dbPool, err := db.Init()
 	if err != nil {
-		log.Fatal(err)
+		logger.Log(context.Background(), config.LevelTrace, "failed database initialization", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	us := store.NewUserStore(dbPool)
@@ -24,6 +29,6 @@ func Run() {
 
 	addr := fmt.Sprintf(":%s", env.Port)
 
-	s := transport.NewServer(addr, us, as)
+	s := transport.NewServer(addr, us, as, logger)
 	s.Serve()
 }

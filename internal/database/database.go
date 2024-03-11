@@ -3,11 +3,12 @@ package database
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/LaQuannT/astronaut-data-api/internal/config"
 	"github.com/LaQuannT/astronaut-data-api/internal/model"
 	"github.com/gocarina/gocsv"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -15,17 +16,17 @@ import (
 )
 
 type PostgresDB struct {
-	db *pgxpool.Pool
+	db     *pgxpool.Pool
+	logger *slog.Logger
 }
 
-func NewPostgresDB(connStr string) *PostgresDB {
+func NewPostgresDB(connStr string, l *slog.Logger) *PostgresDB {
 	ctx := context.Background()
-
-	log.Println("Connecting to database")
 
 	dbpool, err := pgxpool.New(ctx, connStr)
 	if err != nil {
-		log.Fatalf("unable to connect to database %v", err)
+		l.Log(ctx, config.LevelTrace, "unable to connect to database", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -33,16 +34,19 @@ func NewPostgresDB(connStr string) *PostgresDB {
 
 	if err = dbpool.Ping(ctx); err != nil {
 		dbpool.Close()
-		log.Fatalf("unable to verify database connection status: %v", err)
+		l.Log(ctx, config.LevelTrace, "unable to verify database connection status", slog.Any("error", err))
+		os.Exit(1)
 	}
 
+	l.Info("Connected to database")
 	return &PostgresDB{
-		db: dbpool,
+		db:     dbpool,
+		logger: l,
 	}
 }
 
 func (p *PostgresDB) Init() (*pgxpool.Pool, error) {
-	log.Println("Attempting to build tables")
+	p.logger.Info("Attempting to build tables")
 
 	if err := p.createUserTable(); err != nil {
 		return nil, fmt.Errorf("failed to build 'USER' table: %v", err)
@@ -52,16 +56,18 @@ func (p *PostgresDB) Init() (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("failed to build 'ASTRONAUT' table: %v", err)
 	}
 
+	p.logger.Info("'USER' and 'ASTRONAUT' tables built")
 	count, err := p.checkAstronautCount()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get 'ASTRONAUT' count: %w", err)
 	}
 
 	if count == 0 {
-		log.Println("Attempting to seed Astronaut table")
+		p.logger.Info("Attempting to seed Astronaut table")
 		if err := p.populateAstronautTable(); err != nil {
 			return nil, fmt.Errorf("faild to seed 'ASTRONAUT' table: %w", err)
 		}
+		p.logger.Info("'ASTRONAUT' table seeded")
 	}
 
 	return p.db, nil
