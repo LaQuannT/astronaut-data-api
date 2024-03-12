@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -13,10 +12,6 @@ import (
 	"github.com/LaQuannT/astronaut-data-api/internal/transport/util"
 	"github.com/gorilla/mux"
 )
-
-type apiKeyHeader string
-
-const ApiKeyHeader apiKeyHeader = "X-api-key"
 
 type userHandler struct {
 	service model.UserUsecase
@@ -37,6 +32,8 @@ func RegisterUserHandlers(s model.UserUsecase, r *mux.Router, l *slog.Logger) {
 	sr.HandleFunc("/{userID}", handler.GetUser).Methods("GET")
 	sr.HandleFunc("/{userID}", handler.UpdateUser).Methods("PUT")
 	sr.HandleFunc("/{userID}", handler.DeleteUser).Methods("DELETE")
+	sr.HandleFunc("/password/{userID}", handler.PasswordReset).Methods("PATCH")
+	sr.HandleFunc("/apikey/{userID}", handler.APIKeyReset).Methods("PATCH")
 }
 
 func (h *userHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
@@ -60,8 +57,7 @@ func (h *userHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *userHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
-	key := r.Header.Get(string(ApiKeyHeader))
-	ctx := context.WithValue(r.Context(), ApiKeyHeader, key)
+	ctx := r.Context()
 
 	params, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
@@ -96,8 +92,7 @@ func (h *userHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *userHandler) GetUser(w http.ResponseWriter, r *http.Request) {
-	key := r.Header.Get(string(ApiKeyHeader))
-	ctx := context.WithValue(r.Context(), ApiKeyHeader, key)
+	ctx := r.Context()
 
 	userID := mux.Vars(r)["userID"]
 
@@ -118,8 +113,7 @@ func (h *userHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
-	key := r.Header.Get(string(ApiKeyHeader))
-	ctx := context.WithValue(r.Context(), ApiKeyHeader, key)
+	ctx := r.Context()
 	u := new(model.User)
 
 	userID := mux.Vars(r)["userID"]
@@ -138,10 +132,10 @@ func (h *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	u.ID = id
 
-	u, err = h.service.Update(ctx, u)
-	if err != nil {
+	u, errs := h.service.Update(ctx, u)
+	if errs != nil {
 		util.WriteJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Bad Request"})
-		h.log.Warn("error updating a user", slog.Any("error", err))
+		h.log.Warn("error updating a user", slog.Any("errors", errs))
 		return
 	}
 
@@ -149,8 +143,7 @@ func (h *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *userHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
-	key := r.Header.Get(string(ApiKeyHeader))
-	ctx := context.WithValue(r.Context(), ApiKeyHeader, key)
+	ctx := r.Context()
 
 	userID := mux.Vars(r)["userID"]
 
@@ -167,4 +160,54 @@ func (h *userHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	util.WriteJSON(w, http.StatusOK, model.JSONResponse{Message: "User Deleted"})
+}
+
+func (h *userHandler) PasswordReset(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	u := new(model.User)
+
+	userID := mux.Vars(r)["userID"]
+
+	id, err := strconv.Atoi(userID)
+	if err != nil {
+		util.WriteJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Invalid User ID"})
+		return
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(u); err != nil {
+		util.WriteJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Invalid request body"})
+		h.log.Warn("error decoding json request body", slog.Any("error", err))
+		return
+	}
+
+	u.ID = id
+
+	if errs := h.service.ResetPassword(ctx, u); err != nil {
+		util.WriteJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Bad Request"})
+		h.log.Warn("error reseting user password", slog.Any("errors", errs))
+		return
+	}
+
+	util.WriteJSON(w, http.StatusOK, model.JSONResponse{Message: "User password reset"})
+}
+
+func (h *userHandler) APIKeyReset(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	userID := mux.Vars(r)["userID"]
+
+	id, err := strconv.Atoi(userID)
+	if err != nil {
+		util.WriteJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Invalid User ID"})
+		return
+	}
+
+	u, err := h.service.GenerateNewAPIKey(ctx, id)
+	if err != nil {
+		util.WriteJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Bad Request"})
+		h.log.Warn("error resetting API key", slog.Any("error", err))
+		return
+	}
+
+	util.WriteJSON(w, http.StatusOK, model.JSONResponse{User: u})
 }

@@ -64,10 +64,10 @@ func (s *UserStore) Get(ctx context.Context, id int) (*model.User, error) {
 }
 
 func (s *UserStore) Update(ctx context.Context, u *model.User) error {
-	query := `UPDATE "user" SET first_name=$1, surname=$2, email=$3, password=$4 api_key=$5, role=$6, updated_at=$7
+	query := `UPDATE "user" SET first_name=$1, surname=$2, email=$3, role=$4, updated_at=$5
   WHERE id=$8;`
 
-	_, err := s.db.Exec(ctx, query, u.FirstName, u.Surename, u.Email, u.Password, u.ApiKey, u.Role, u.UpdatedAt, u.ID)
+	_, err := s.db.Exec(ctx, query, u.FirstName, u.Surename, u.Email, u.Role, u.UpdatedAt, u.ID)
 	if err != nil {
 		return err
 	}
@@ -92,6 +92,26 @@ func (s *UserStore) SearchApiKey(ctx context.Context, key string) (*model.User, 
 		return nil, err
 	}
 	return u, nil
+}
+
+func (s *UserStore) UpdatePassword(ctx context.Context, u *model.User) error {
+	query := `UPDATE "user" SET password=$1, updated_at=$2 WHERE id=$3;`
+
+	_, err := s.db.Exec(ctx, query, u.Password, u.UpdatedAt, u.ID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *UserStore) UpdateAPIKey(ctx context.Context, u *model.User) error {
+	query := `UPDATE "user" SET api_key=$1, updated_at=$2 WHERE id=$3;`
+
+	_, err := s.db.Exec(ctx, query, u.ApiKey, u.UpdatedAt, u.ID)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func fromRowToUser(r pgx.Rows) (*model.User, error) {

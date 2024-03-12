@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"unicode"
+
+	"github.com/LaQuannT/astronaut-data-api/internal/model"
 )
 
 type (
@@ -107,5 +109,18 @@ func Password(min int) Rule {
 			return fmt.Errorf("%s must contain one upper, lower, number, and special character atleast %d characters", key, min)
 		}
 		return nil
+	}
+}
+
+func Role(key string, value interface{}) error {
+	str, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("%s is not a string", key)
+	}
+
+	if str == model.AdminUser || str == model.BaseUser {
+		return nil
+	} else {
+		return fmt.Errorf("%s is not a valid role", key)
 	}
 }

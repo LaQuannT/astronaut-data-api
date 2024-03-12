@@ -30,14 +30,18 @@ type (
 		Update(ctx context.Context, u *User) error
 		Delete(ctx context.Context, id int) error
 		SearchApiKey(ctx context.Context, key string) (*User, error)
+		UpdatePassword(ctx context.Context, u *User) error
+		UpdateAPIKey(ctx context.Context, u *User) error
 	}
 
 	UserUsecase interface {
 		Create(ctx context.Context, u *User) (*User, []error)
 		List(ctx context.Context, limit, offset int) ([]*User, error)
 		Get(ctx context.Context, id int) (*User, error)
-		Update(ctx context.Context, u *User) (*User, error)
+		Update(ctx context.Context, u *User) (*User, []error)
 		Delete(ctx context.Context, id int) error
 		SearchAPIKey(ctx context.Context, key string) (*User, error)
+		ResetPassword(ctx context.Context, u *User) []error
+		GenerateNewAPIKey(ctx context.Context, id int) (*User, error)
 	}
 )

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -36,9 +35,7 @@ func RegisterAstronautHandlers(s model.AstronautUsecase, r *mux.Router, l *slog.
 
 func (h *astronautHandler) CreateAstronaut(w http.ResponseWriter, r *http.Request) {
 	a := new(model.Astronaut)
-
-	key := r.Header.Get(string(ApiKeyHeader))
-	ctx := context.WithValue(r.Context(), ApiKeyHeader, key)
+	ctx := r.Context()
 
 	if err := json.NewDecoder(r.Body).Decode(a); err != nil {
 		util.WriteJSON(w, http.StatusBadRequest, model.JSONResponse{Error: "Invalid request body"})
@@ -57,8 +54,7 @@ func (h *astronautHandler) CreateAstronaut(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *astronautHandler) ListAstronauts(w http.ResponseWriter, r *http.Request) {
-	key := r.Header.Get(string(ApiKeyHeader))
-	ctx := context.WithValue(r.Context(), ApiKeyHeader, key)
+	ctx := r.Context()
 
 	params, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
@@ -93,8 +89,7 @@ func (h *astronautHandler) ListAstronauts(w http.ResponseWriter, r *http.Request
 }
 
 func (h *astronautHandler) GetAstronaut(w http.ResponseWriter, r *http.Request) {
-	key := r.Header.Get(string(ApiKeyHeader))
-	ctx := context.WithValue(r.Context(), ApiKeyHeader, key)
+	ctx := r.Context()
 
 	astronautID := mux.Vars(r)["astronautID"]
 	id, err := strconv.Atoi(astronautID)
@@ -114,8 +109,7 @@ func (h *astronautHandler) GetAstronaut(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *astronautHandler) UpdateAstronaut(w http.ResponseWriter, r *http.Request) {
-	key := r.Header.Get(string(ApiKeyHeader))
-	ctx := context.WithValue(r.Context(), ApiKeyHeader, key)
+	ctx := r.Context()
 	a := new(model.Astronaut)
 
 	astronautID := mux.Vars(r)["astronautID"]
@@ -144,8 +138,7 @@ func (h *astronautHandler) UpdateAstronaut(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *astronautHandler) DeleteAstronaut(w http.ResponseWriter, r *http.Request) {
-	key := r.Header.Get(string(ApiKeyHeader))
-	ctx := context.WithValue(r.Context(), ApiKeyHeader, key)
+	ctx := r.Context()
 
 	astronautID := mux.Vars(r)["astronautID"]
 	id, err := strconv.Atoi(astronautID)

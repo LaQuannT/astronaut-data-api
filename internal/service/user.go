@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/LaQuannT/astronaut-data-api/internal/model"
-	"github.com/LaQuannT/astronaut-data-api/internal/transport/handler"
+	"github.com/LaQuannT/astronaut-data-api/internal/transport/middleware"
 	"github.com/LaQuannT/astronaut-data-api/internal/validation"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -30,10 +30,12 @@ var userValidatorRules = validation.Rules{
 	"length":   validation.Length(50),
 	"email":    validation.Email,
 	"password": validation.Password(8),
+	"role":     validation.Role,
 }
 
 func (uc *userUsercase) Create(ctx context.Context, u *model.User) (*model.User, []error) {
 	errs := make([]error, 0)
+
 	v := validation.New(userValidatorRules)
 
 	checks := map[string]validation.Check{
@@ -73,26 +75,19 @@ func (uc *userUsercase) Create(ctx context.Context, u *model.User) (*model.User,
 	}
 
 	u.ID = id
-	u.Password = ""
 	return u, nil
 }
 
 func (uc *userUsercase) List(ctx context.Context, limit, offset int) ([]*model.User, error) {
-	key := ctx.Value(handler.ApiKeyHeader)
-	apikey, ok := key.(string)
+	requestUser, ok := ctx.Value(middleware.RequestUser).(*model.User)
 	if !ok {
-		return nil, errors.New("invalid API Key")
+		return nil, errors.New("invalid request-User")
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	u, err := uc.store.SearchApiKey(ctx, apikey)
-	if err != nil {
-		return nil, fmt.Errorf("error searching user by api key: %w", err)
-	}
-
-	if u.Role != model.AdminUser {
+	if requestUser.Role != model.AdminUser {
 		return nil, errors.New("user is not authorised")
 	}
 
@@ -105,25 +100,23 @@ func (uc *userUsercase) List(ctx context.Context, limit, offset int) ([]*model.U
 }
 
 func (uc *userUsercase) Get(ctx context.Context, id int) (*model.User, error) {
-	key := ctx.Value(handler.ApiKeyHeader)
-	apikey, ok := key.(string)
+	requestUser, ok := ctx.Value(middleware.RequestUser).(*model.User)
 	if !ok {
-		return nil, errors.New("invalid API Key")
+		return nil, errors.New("invalid request-User")
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	u, err := uc.store.SearchApiKey(ctx, apikey)
-	if err != nil {
-		return nil, fmt.Errorf("error searching user by api key: %w", err)
+	if requestUser.ID == id {
+		return requestUser, nil
 	}
 
-	if u.Role != model.AdminUser {
+	if requestUser.Role != model.AdminUser {
 		return nil, errors.New("user is not authorised")
 	}
 
-	u, err = uc.store.Get(ctx, id)
+	u, err := uc.store.Get(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching user: %w", err)
 	}
@@ -131,62 +124,76 @@ func (uc *userUsercase) Get(ctx context.Context, id int) (*model.User, error) {
 	return u, nil
 }
 
-func (uc *userUsercase) Update(ctx context.Context, u *model.User) (*model.User, error) {
-	key := ctx.Value(handler.ApiKeyHeader)
-	apikey, ok := key.(string)
+func (uc *userUsercase) Update(ctx context.Context, u *model.User) (*model.User, []error) {
+	errs := make([]error, 0)
+
+	requestUser, ok := ctx.Value(middleware.RequestUser).(*model.User)
 	if !ok {
-		return nil, errors.New("invalid API Key")
+		err := errors.New("invalid request-User")
+		errs = append(errs, err)
+		return nil, errs
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	requestUser, err := uc.store.SearchApiKey(ctx, apikey)
-	if err != nil {
-		return nil, fmt.Errorf("error searching user by api key: %w", err)
-	}
+	var originalUser *model.User
 
-	if requestUser.Role != model.AdminUser {
-		if requestUser.ID != u.ID {
-			return nil, errors.New("user is not authorised")
+	if requestUser.ID == u.ID {
+		originalUser = requestUser
+	} else if requestUser.ID != u.ID && requestUser.Role == model.AdminUser {
+		ou, err := uc.store.Get(ctx, u.ID)
+		if err != nil {
+			err = fmt.Errorf("error fetching original user data: %w", err)
+			errs = append(errs, err)
+			return nil, errs
+
 		}
+		originalUser = ou
+
+	} else {
+		err := errors.New("user is not authorised")
+		errs = append(errs, err)
+		return nil, errs
 	}
 
-	_, err = uc.store.Get(ctx, u.ID)
-	if err != nil {
-		return nil, fmt.Errorf("error fetching original user data: %w", err)
+	v := validation.New(userValidatorRules)
+
+	checks := map[string]validation.Check{
+		"firstName": {Value: u.FirstName, RuleKey: []string{"require", "length"}},
+		"surename":  {Value: u.Surename, RuleKey: []string{"require", "length"}},
+		"email":     {Value: u.Email, RuleKey: []string{"require", "email", "length"}},
+		"role":      {Value: u.Role, RuleKey: []string{"role"}},
 	}
 
-	// TODO - validate and compare original and new data
+	if errs := v.Validate(checks); errs != nil {
+		return nil, errs
+	}
+
+	u = compareUserData(originalUser, u)
 
 	u.UpdatedAt = time.Now().UTC()
 
 	if err := uc.store.Update(ctx, u); err != nil {
-		return nil, fmt.Errorf("error updating user data: %w", err)
+		err = fmt.Errorf("error updating user data: %w", err)
+		errs = append(errs, err)
+		return nil, errs
 	}
 
 	return u, nil
 }
 
 func (uc *userUsercase) Delete(ctx context.Context, id int) error {
-	key := ctx.Value(handler.ApiKeyHeader)
-	apikey, ok := key.(string)
+	requestUser, ok := ctx.Value(middleware.RequestUser).(*model.User)
 	if !ok {
-		return errors.New("invalid API Key")
+		return errors.New("invalid request-User")
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	u, err := uc.store.SearchApiKey(ctx, apikey)
-	if err != nil {
-		return fmt.Errorf("error searching user by api key: %w", err)
-	}
-
-	if u.Role != model.AdminUser {
-		if u.ID != id {
-			return errors.New("user is not authorised")
-		}
+	if requestUser.Role != model.AdminUser && requestUser.ID != id {
+		return errors.New("user is not authorised")
 	}
 
 	if err := uc.store.Delete(ctx, id); err != nil {
@@ -196,6 +203,80 @@ func (uc *userUsercase) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
+func (uc *userUsercase) ResetPassword(ctx context.Context, u *model.User) []error {
+	errs := make([]error, 0)
+
+	requestUser, ok := ctx.Value(middleware.RequestUser).(*model.User)
+	if !ok {
+		err := errors.New("invalid request-User")
+		errs = append(errs, err)
+		return errs
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	if requestUser.ID != u.ID {
+		err := errors.New("user is not authorised")
+		errs = append(errs, err)
+		return errs
+
+	}
+
+	v := validation.New(userValidatorRules)
+
+	checks := map[string]validation.Check{
+		"password": {Value: u.Password, RuleKey: []string{"require", "password"}},
+	}
+
+	if errs := v.Validate(checks); errs != nil {
+		return errs
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(u.Password), 12)
+	if err != nil {
+		err := fmt.Errorf("error generating password hash: %w", err)
+		errs = append(errs, err)
+		return errs
+
+	}
+
+	u.Password = string(hash)
+	u.UpdatedAt = time.Now().UTC()
+
+	if err := uc.store.UpdatePassword(ctx, u); err != nil {
+		err = fmt.Errorf("error resetting user password: %w", err)
+		errs = append(errs, err)
+		return errs
+
+	}
+
+	return nil
+}
+
+func (uc *userUsercase) GenerateNewAPIKey(ctx context.Context, id int) (*model.User, error) {
+	requestUser, ok := ctx.Value(middleware.RequestUser).(*model.User)
+	if !ok {
+		return nil, errors.New("invalid request-User")
+	}
+
+	if requestUser.ID != id {
+		return nil, errors.New("user not authorised")
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	requestUser.ApiKey = uuid.New().String()
+	requestUser.UpdatedAt = time.Now().UTC()
+
+	if err := uc.store.UpdateAPIKey(ctx, requestUser); err != nil {
+		return nil, fmt.Errorf("error generating new APIKey: %w", err)
+	}
+
+	return requestUser, nil
+}
+
 func (uc *userUsercase) SearchAPIKey(ctx context.Context, key string) (*model.User, error) {
 	u, err := uc.store.SearchApiKey(ctx, key)
 	if err != nil {
@@ -203,4 +284,24 @@ func (uc *userUsercase) SearchAPIKey(ctx context.Context, key string) (*model.Us
 	}
 
 	return u, nil
+}
+
+func compareUserData(old, new *model.User) *model.User {
+	if new.FirstName != old.FirstName {
+		old.FirstName = new.FirstName
+	}
+
+	if new.Surename != old.Surename {
+		old.Surename = new.Surename
+	}
+
+	if new.Email != old.Email {
+		old.Email = new.Email
+	}
+
+	if new.Role != old.Role {
+		old.Role = new.Role
+	}
+
+	return old
 }
