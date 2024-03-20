@@ -23,7 +23,10 @@ type (
 	}
 )
 
-var emailRegex = regexp.MustCompile(`[\w-\.]+@([\w-]+\.)+[\w-]{2,4}`)
+var (
+	emailRegex = regexp.MustCompile(`[\w-\.]+@([\w-]+\.)+[\w-]{2,4}`)
+	dateRegex  = regexp.MustCompile(`(\d+)\/(\d+)\/(\d+)`)
+)
 
 func New(r Rules) *Validator {
 	return &Validator{rules: r}
@@ -123,4 +126,42 @@ func Role(key string, value interface{}) error {
 	} else {
 		return fmt.Errorf("%s is not a valid role", key)
 	}
+}
+
+func Status(key string, value interface{}) error {
+	str, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("%s is not a string", key)
+	}
+
+	if str == "active" || str == "retired" || str == "management" || str == "deceased" {
+		return nil
+	}
+
+	return fmt.Errorf("%s must be one of (active, retired, management, deceased)", key)
+}
+
+func Gender(key string, value interface{}) error {
+	str, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("%s is not a string", key)
+	}
+
+	if str == "male" || str == "female" {
+		return nil
+	}
+
+	return fmt.Errorf("%s is not a gender", key)
+}
+
+func Date(key string, value interface{}) error {
+	str, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("%s is not a string", key)
+	}
+
+	if !dateRegex.MatchString(str) {
+		return fmt.Errorf("%s must be formatted MM/DD/YYYY or M/D/YYYY", key)
+	}
+	return nil
 }

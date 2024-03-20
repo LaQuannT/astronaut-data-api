@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/LaQuannT/astronaut-data-api/internal/model"
+	"github.com/LaQuannT/astronaut-data-api/internal/transport/middleware"
 	"github.com/LaQuannT/astronaut-data-api/internal/transport/util"
 	"github.com/gorilla/mux"
 )
@@ -17,14 +18,14 @@ type astronautHandler struct {
 	log     *slog.Logger
 }
 
-func RegisterAstronautHandlers(s model.AstronautUsecase, r *mux.Router, l *slog.Logger) {
+func RegisterAstronautHandlers(s model.AstronautUsecase, us model.UserUsecase, r *mux.Router, l *slog.Logger) {
 	handler := &astronautHandler{
 		service: s,
 		log:     l,
 	}
 
 	sr := r.PathPrefix("/astronauts").Subrouter()
-	// TODO - add api key middleware
+	sr.Use(middleware.APIKeyValidation(us, l))
 
 	sr.HandleFunc("", handler.CreateAstronaut).Methods("POST")
 	sr.HandleFunc("", handler.ListAstronauts).Methods("GET")

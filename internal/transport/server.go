@@ -39,7 +39,7 @@ func (s *server) Serve() {
 	astronautService := usecase.NewAstronautUsecase(s.astronautStore, s.userStore)
 
 	handler.RegisterUserHandlers(userService, sr, s.log)
-	handler.RegisterAstronautHandlers(astronautService, sr, s.log)
+	handler.RegisterAstronautHandlers(astronautService, userService, sr, s.log)
 
 	s.log.Info(fmt.Sprintf("Server listening on '%s'", s.addr))
 	log.Fatal(http.ListenAndServe(s.addr, r))

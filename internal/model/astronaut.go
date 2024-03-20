@@ -40,10 +40,11 @@ type (
 		Get(ctx context.Context, id int) (*Astronaut, error)
 		Update(ctx context.Context, a *Astronaut) error
 		Delete(ctx context.Context, id int) error
+		SearchByName(ctx context.Context, name string, limit, offset int) ([]*Astronaut, error)
 	}
 
 	AstronautUsecase interface {
-		Create(ctx context.Context, a *Astronaut) (*Astronaut, error)
+		Create(ctx context.Context, a *Astronaut) (*Astronaut, []error)
 		List(ctx context.Context, limit, offset int) ([]*Astronaut, error)
 		Get(ctx context.Context, id int) (*Astronaut, error)
 		Update(ctx context.Context, a *Astronaut) (*Astronaut, error)

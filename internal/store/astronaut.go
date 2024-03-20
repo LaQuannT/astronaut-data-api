@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/LaQuannT/astronaut-data-api/internal/model"
 	"github.com/jackc/pgx/v5"
@@ -45,7 +46,7 @@ func (s *astronautStore) List(ctx context.Context, limit, offset int) ([]*model.
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Next()
+	defer rows.Close()
 
 	for rows.Next() {
 		a, err := fromRowToAstronaut(rows)
@@ -91,6 +92,30 @@ func (s *astronautStore) Delete(ctx context.Context, id int) error {
 		return err
 	}
 	return nil
+}
+
+func (s *astronautStore) SearchByName(ctx context.Context, name string, limit, offset int) ([]*model.Astronaut, error) {
+	var astronauts []*model.Astronaut
+
+	query := `SELECT * FROM astronaut WHERE name ILIKE $1 ORDER BY name ASC LIMIT $2 OFFSET $3;`
+	name = fmt.Sprintf("%%%s%%", name)
+
+	rows, err := s.db.Query(ctx, query, name, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		a, err := fromRowToAstronaut(rows)
+		if err != nil {
+			return nil, err
+		}
+
+		astronauts = append(astronauts, a)
+	}
+
+	return astronauts, nil
 }
 
 func fromRowToAstronaut(r pgx.Rows) (*model.Astronaut, error) {

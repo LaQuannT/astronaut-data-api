@@ -2,9 +2,12 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/LaQuannT/astronaut-data-api/internal/model"
+	"github.com/LaQuannT/astronaut-data-api/internal/transport/middleware"
+	"github.com/LaQuannT/astronaut-data-api/internal/validation"
 )
 
 type astronautUsecase struct {
@@ -19,23 +22,57 @@ func NewAstronautUsecase(as model.AstronautStore, us model.UserStore) *astronaut
 	}
 }
 
-func (uc *astronautUsecase) Create(ctx context.Context, a *model.Astronaut) (*model.Astronaut, error) {
-	// TODO - validate apikey and admin permission, validate astronaut data
+var astronautValidatorRules = validation.Rules{
+	"require": validation.Required,
+	"status":  validation.Status,
+	"date":    validation.Date,
+	"gender":  validation.Gender,
+}
+
+func (uc *astronautUsecase) Create(ctx context.Context, a *model.Astronaut) (*model.Astronaut, []error) {
+	errs := make([]error, 0)
+
+	requestUser, ok := ctx.Value(middleware.RequestUser).(*model.User)
+	if !ok {
+		err := errors.New("invalid request-user")
+		errs := append(errs, err)
+		return nil, errs
+	}
+
+	if requestUser.Role != model.AdminUser {
+		err := errors.New("user is not authorised")
+		errs := append(errs, err)
+		return nil, errs
+	}
+
+	v := validation.New(astronautValidatorRules)
+
+	checks := map[string]validation.Check{
+		"name":        {Value: a.Name, RuleKey: []string{"require"}},
+		"status":      {Value: a.Status, RuleKey: []string{"status"}},
+		"birth date":  {Value: a.BirthDate, RuleKey: []string{"date"}},
+		"birth place": {Value: a.BirthPlace, RuleKey: []string{"require"}},
+		"gender":      {Value: a.Gender, RuleKey: []string{"gender"}},
+	}
+
+	if errs := v.Validate(checks); errs != nil {
+		return nil, errs
+	}
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	a, err := uc.astronautStore.Create(ctx, a)
 	if err != nil {
-		return nil, fmt.Errorf("error creating new astronaut: %w", err)
+		err := fmt.Errorf("error creating new astronaut: %w", err)
+		errs := append(errs, err)
+		return nil, errs
 	}
 
 	return a, nil
 }
 
 func (uc *astronautUsecase) List(ctx context.Context, limit, offset int) ([]*model.Astronaut, error) {
-	// TODO- validate apikey base user permission
-
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -48,8 +85,6 @@ func (uc *astronautUsecase) List(ctx context.Context, limit, offset int) ([]*mod
 }
 
 func (uc *astronautUsecase) Get(ctx context.Context, id int) (*model.Astronaut, error) {
-	// TODO - validate apikey base user permission
-
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -62,14 +97,21 @@ func (uc *astronautUsecase) Get(ctx context.Context, id int) (*model.Astronaut, 
 }
 
 func (uc *astronautUsecase) Update(ctx context.Context, a *model.Astronaut) (*model.Astronaut, error) {
-	// TODO - validate apikey and admin permission
+	requestUser, ok := ctx.Value(middleware.RequestUser).(*model.User)
+	if !ok {
+		return nil, errors.New("invalid request-user")
+	}
 
-	_, err := uc.astronautStore.Get(ctx, a.ID)
+	if requestUser.Role != model.AdminUser {
+		return nil, errors.New("user is not authorised")
+	}
+
+	original, err := uc.astronautStore.Get(ctx, a.ID)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching original astronaut data: %w", err)
 	}
 
-	// TODO - validate and compare original and new astronaut data
+	a = compareAstronautData(original, a)
 
 	if err := uc.astronautStore.Update(ctx, a); err != nil {
 		return nil, fmt.Errorf("error updating astronaut data: %w", err)
@@ -79,7 +121,14 @@ func (uc *astronautUsecase) Update(ctx context.Context, a *model.Astronaut) (*mo
 }
 
 func (uc *astronautUsecase) Delete(ctx context.Context, id int) error {
-	// TODO - validate apikey and admin permission
+	requestUser, ok := ctx.Value(middleware.RequestUser).(*model.User)
+	if !ok {
+		return errors.New("invalid request-user")
+	}
+
+	if requestUser.Role != model.AdminUser {
+		return errors.New("user is not authorised")
+	}
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -89,4 +138,29 @@ func (uc *astronautUsecase) Delete(ctx context.Context, id int) error {
 	}
 
 	return nil
+}
+
+func compareAstronautData(old, new *model.Astronaut) *model.Astronaut {
+	if new.Name != "" && new.Name != old.Name {
+		old.Name = new.Name
+	}
+	if new.Year != 0 && new.Year != old.Year {
+		old.Year = new.Year
+	}
+	if new.Group != 0 && new.Group != old.Group {
+		old.Group = new.Group
+	}
+	if new.Status != "" && new.Status != old.Status {
+		old.Status = new.Status
+	}
+	if new.BirthDate != "" && new.Status != old.Status {
+		old.Status = new.Status
+	}
+	if new.BirthPlace != "" && new.Status != old.BirthPlace {
+		old.BirthPlace = new.BirthPlace
+	}
+	if new.Gender != "" && new.Gender != old.Gender {
+		old.Gender = new.Gender
+	}
+	return old
 }
