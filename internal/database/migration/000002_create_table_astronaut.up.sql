@@ -1,0 +1,22 @@
+  CREATE TABLE IF NOT EXISTS astronaut (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  year INT NOT NULL,
+  "group" INT NOT NULL,
+  status VARCHAR(20) NOT NULL,
+  birth_date VARCHAR(20) NOT NULL,
+  birth_place VARCHAR(50) NOT NULL,
+  gender VARCHAR(10) NOT NULL,
+  alma_mater VARCHAR(50)[],
+  undergraduate_major VARCHAR(50)[],
+  graduate_major VARCHAR(50)[],
+  military_rank VARCHAR(50),
+  military_branch VARCHAR(50),
+  space_flights INT NOT NULL,
+  space_flight_hrs INT NOT NULL,
+  space_walks INT NOT NULL,
+  space_walk_hrs INT NOT NULL,
+  missions VARCHAR(50)[],
+  death_date VARCHAR(20),
+  death_mission VARCHAR(50)
+);
